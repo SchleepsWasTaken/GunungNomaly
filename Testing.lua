@@ -1,8 +1,8 @@
 -- Rayfield GUI with Separate Tabs for Flight and Checkpoints in [BARU] Gunung Nomaly
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
--- Updated Rayfield URL for reliability; includes flying mode, teleport to checkpoints, summit detection, and enhanced checkpoint handling
+-- Includes flying mode, teleport to checkpoints, summit detection, and enhanced checkpoint debugging
 
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Create the main GUI window
 local Window = Rayfield:CreateWindow({
@@ -52,10 +52,10 @@ local function findCheckpoints()
             Image = nil,
             Actions = {}
          })
-      else
+      elseif #checkpoints < 5 then
          Rayfield:Notify({
             Title = "Notice",
-            Content = #checkpoints .. " checkpoints detected. If 5-6 are missing, they may load later.",
+            Content = "Only " .. #checkpoints .. " checkpoints detected. Checkpoints 3–5 may load later.",
             Duration = 5,
             Image = nil,
             Actions = {}
@@ -73,13 +73,11 @@ local function findCheckpoints()
    return checkpoints
 end
 
--- Initial checkpoints load
+-- Get checkpoints
 local checkpoints = findCheckpoints()
 
--- Function to create teleport buttons based on current checkpoints
-local function createTeleportButtons()
-   -- Clear existing buttons (except fixed ones)
-   -- Note: Rayfield doesn't support dynamic clearing easily, so buttons may duplicate on refresh; use with caution
+-- Create a button for each checkpoint
+if #checkpoints > 0 then
    for i, cp in ipairs(checkpoints) do
       CheckpointTab:CreateButton({
          Name = "Teleport to " .. cp.Name,
@@ -106,32 +104,9 @@ local function createTeleportButtons()
          end
       })
    end
-end
-
--- Initial creation of teleport buttons
-if #checkpoints > 0 then
-   createTeleportButtons()
 else
    CheckpointTab:CreateLabel("No checkpoints found. Use flying to explore or check console.")
 end
-
--- Refresh Checkpoints button
-CheckpointTab:CreateButton({
-   Name = "Refresh Checkpoints",
-   Callback = function()
-      checkpoints = findCheckpoints()
-      Rayfield:Notify({
-         Title = "Refreshed",
-         Content = "Checkpoints reloaded. New buttons may appear below.",
-         Duration = 3,
-         Image = nil,
-         Actions = {}
-      })
-      if #checkpoints > 0 then
-         createTeleportButtons()
-      end
-   end
-})
 
 -- Auto-Teleport through all checkpoints
 CheckpointTab:CreateButton({
@@ -193,17 +168,17 @@ else
    CheckpointTab:CreateLabel("Summit not found. Use flying to reach the top and interact (E/tap).")
 end
 
--- Allow manual addition of missing checkpoints (any number)
+-- Allow manual addition of missing checkpoints (e.g., 3-5) if known
 CheckpointTab:CreateButton({
-   Name = "Add Missing Checkpoint (e.g., 5-6)",
+   Name = "Add Missing Checkpoint (e.g., 3)",
    Callback = function()
-      local input = CheckpointTab:CreateInput({
-         Name = "Enter Checkpoint Number (e.g., 5)",
+      local input = Rayfield:CreateInput({
+         Name = "Enter Checkpoint Number (e.g., 3)",
          PlaceholderText = "Number only",
          RemoveTextAfterFocusLost = false,
          Callback = function(text)
             local num = tonumber(text)
-            if num then
+            if num and num >= 3 and num <= 5 then
                local cpName = "Checkpoint" .. num
                local cp = game.Workspace.Checkpoints:FindFirstChild(cpName)
                if cp and cp:IsA("BasePart") then
@@ -243,7 +218,7 @@ CheckpointTab:CreateButton({
             else
                Rayfield:Notify({
                   Title = "Error",
-                  Content = "Invalid input. Enter a number like 5 or 6.",
+                  Content = "Invalid input. Enter 3, 4, or 5.",
                   Duration = 3,
                   Image = nil,
                   Actions = {}
@@ -251,6 +226,7 @@ CheckpointTab:CreateButton({
             end
          end
       })
+      input:Show()
    end
 })
 
