@@ -1,25 +1,26 @@
--- Rayfield GUI Teleport Script for [BARU] Gunung Nomaly
+-- Rayfield GUI with Separate Tabs for Flight and Checkpoints in [BARU] Gunung Nomaly
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
--- Includes teleport through checkpoints in Workspace.Checkpoints and flying mode
+-- Includes flying mode and teleport to checkpoints in Workspace.Checkpoints
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Create the main GUI window
 local Window = Rayfield:CreateWindow({
-   Name = "Gunung Nomaly TP & Fly GUI",
-   LoadingTitle = "Teleport & Flight Script",
+   Name = "Gunung Nomaly Utility GUI",
+   LoadingTitle = "Flight & TP Script",
    LoadingSubtitle = "by Grok",
    ConfigurationSaving = {
       Enabled = false,
       FolderName = nil,
-      FileName = "GunungNomalyTP"
+      FileName = "GunungNomalyUtility"
    }
 })
 
--- Create a tab for teleport and flight controls
-local Tab = Window:CreateTab("Checkpoints & Flight", nil)
+-- Create separate tabs
+local FlightTab = Window:CreateTab("Flight Controls", nil)
+local CheckpointTab = Window:CreateTab("Checkpoint Teleports", nil)
 
--- Function to find and sort checkpoints
+-- Function to find and sort checkpoints with debug
 local function findCheckpoints()
    local checkpoints = {}
    local checkpointFolder = game.Workspace:FindFirstChild("Checkpoints")
@@ -27,12 +28,24 @@ local function findCheckpoints()
       for _, child in ipairs(checkpointFolder:GetChildren()) do
          if child:IsA("BasePart") and string.match(child.Name, "Checkpoint%d+") then
             table.insert(checkpoints, child)
+            print("Detected Checkpoint: " .. child.Name .. " at " .. tostring(child.Position))
+         else
+            print("Skipped: " .. child.Name .. " (Not a CheckpointX part)")
          end
       end
       -- Sort by checkpoint number (e.g., Checkpoint1, Checkpoint2)
       table.sort(checkpoints, function(a, b)
          return tonumber(string.match(a.Name, "%d+")) < tonumber(string.match(b.Name, "%d+"))
       end)
+      if #checkpoints == 0 then
+         Rayfield:Notify({
+            Title = "Warning",
+            Content = "No checkpoints found matching 'CheckpointX' pattern. Check console for details.",
+            Duration = 5,
+            Image = nil,
+            Actions = {}
+         })
+      end
    else
       Rayfield:Notify({
          Title = "Error",
@@ -51,7 +64,7 @@ local checkpoints = findCheckpoints()
 -- Create a button for each checkpoint
 if #checkpoints > 0 then
    for i, cp in ipairs(checkpoints) do
-      Tab:CreateButton({
+      CheckpointTab:CreateButton({
          Name = "Teleport to " .. cp.Name,
          Callback = function()
             local player = game.Players.LocalPlayer
@@ -77,11 +90,11 @@ if #checkpoints > 0 then
       })
    end
 else
-   Tab:CreateLabel("No checkpoints found matching 'CheckpointX' pattern.")
+   CheckpointTab:CreateLabel("No checkpoints found. Check console for debug info.")
 end
 
 -- Auto-Teleport through all checkpoints
-Tab:CreateButton({
+CheckpointTab:CreateButton({
    Name = "Auto TP Through All Checkpoints",
    Callback = function()
       local player = game.Players.LocalPlayer
@@ -207,7 +220,7 @@ player.CharacterAdded:Connect(function(newChar)
 end)
 
 -- Toggle flying button
-Tab:CreateToggle({
+FlightTab:CreateToggle({
    Name = "Toggle Fly",
    CurrentValue = false,
    Callback = function(Value)
@@ -230,7 +243,7 @@ Tab:CreateToggle({
 })
 
 -- Fly speed slider
-Tab:CreateSlider({
+FlightTab:CreateSlider({
    Name = "Fly Speed",
    Range = {10, maxSpeed},
    Increment = 10,
@@ -248,11 +261,15 @@ Tab:CreateSlider({
    end
 })
 
--- Optional: Toggle GUI visibility
-Tab:CreateToggle({
-   Name = "Toggle GUI Visibility",
-   CurrentValue = true,
-   Callback = function(Value)
-      Rayfield:ToggleWindow(Value)
-   end
-})
+-- Toggle GUI visibility for both tabs
+local function createVisibilityToggle(tab)
+   tab:CreateToggle({
+      Name = "Toggle GUI Visibility",
+      CurrentValue = true,
+      Callback = function(Value)
+         Rayfield:ToggleWindow(Value)
+      end
+   })
+end
+createVisibilityToggle(FlightTab)
+createVisibilityToggle(CheckpointTab)
