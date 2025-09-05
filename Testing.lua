@@ -1,14 +1,14 @@
 -- Rayfield GUI with Separate Tabs for Flight and Checkpoints in [BARU] Gunung Nomaly
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
--- Includes flying mode, teleport to checkpoints, summit detection, and enhanced checkpoint debugging
+-- Updated Rayfield URL for reliability; includes flying mode, teleport to checkpoints, summit detection, and enhanced checkpoint handling
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 
 -- Create the main GUI window
 local Window = Rayfield:CreateWindow({
    Name = "Gunung Nomaly Utility GUI",
    LoadingTitle = "Flight & TP Script",
-   LoadingSubtitle = "by Sekelep",
+   LoadingSubtitle = "by Grok",
    ConfigurationSaving = {
       Enabled = false,
       FolderName = nil,
@@ -52,10 +52,10 @@ local function findCheckpoints()
             Image = nil,
             Actions = {}
          })
-      elseif #checkpoints < 5 then
+      else
          Rayfield:Notify({
             Title = "Notice",
-            Content = "Only " .. #checkpoints .. " checkpoints detected. Checkpoints 3–5 may load later.",
+            Content = #checkpoints .. " checkpoints detected. If 5-6 are missing, they may load later.",
             Duration = 5,
             Image = nil,
             Actions = {}
@@ -73,11 +73,13 @@ local function findCheckpoints()
    return checkpoints
 end
 
--- Get checkpoints
+-- Initial checkpoints load
 local checkpoints = findCheckpoints()
 
--- Create a button for each checkpoint
-if #checkpoints > 0 then
+-- Function to create teleport buttons based on current checkpoints
+local function createTeleportButtons()
+   -- Clear existing buttons (except fixed ones)
+   -- Note: Rayfield doesn't support dynamic clearing easily, so buttons may duplicate on refresh; use with caution
    for i, cp in ipairs(checkpoints) do
       CheckpointTab:CreateButton({
          Name = "Teleport to " .. cp.Name,
@@ -104,9 +106,32 @@ if #checkpoints > 0 then
          end
       })
    end
+end
+
+-- Initial creation of teleport buttons
+if #checkpoints > 0 then
+   createTeleportButtons()
 else
    CheckpointTab:CreateLabel("No checkpoints found. Use flying to explore or check console.")
 end
+
+-- Refresh Checkpoints button
+CheckpointTab:CreateButton({
+   Name = "Refresh Checkpoints",
+   Callback = function()
+      checkpoints = findCheckpoints()
+      Rayfield:Notify({
+         Title = "Refreshed",
+         Content = "Checkpoints reloaded. New buttons may appear below.",
+         Duration = 3,
+         Image = nil,
+         Actions = {}
+      })
+      if #checkpoints > 0 then
+         createTeleportButtons()
+      end
+   end
+})
 
 -- Auto-Teleport through all checkpoints
 CheckpointTab:CreateButton({
@@ -168,17 +193,17 @@ else
    CheckpointTab:CreateLabel("Summit not found. Use flying to reach the top and interact (E/tap).")
 end
 
--- Allow manual addition of missing checkpoints (e.g., 3-5) if known
+-- Allow manual addition of missing checkpoints (any number)
 CheckpointTab:CreateButton({
-   Name = "Add Missing Checkpoint (e.g., 3)",
+   Name = "Add Missing Checkpoint (e.g., 5-6)",
    Callback = function()
-      local input = Rayfield:CreateInput({
-         Name = "Enter Checkpoint Number (e.g., 3)",
+      local input = CheckpointTab:CreateInput({
+         Name = "Enter Checkpoint Number (e.g., 5)",
          PlaceholderText = "Number only",
          RemoveTextAfterFocusLost = false,
          Callback = function(text)
             local num = tonumber(text)
-            if num and num >= 3 and num <= 5 then
+            if num then
                local cpName = "Checkpoint" .. num
                local cp = game.Workspace.Checkpoints:FindFirstChild(cpName)
                if cp and cp:IsA("BasePart") then
@@ -218,7 +243,7 @@ CheckpointTab:CreateButton({
             else
                Rayfield:Notify({
                   Title = "Error",
-                  Content = "Invalid input. Enter 3, 4, or 5.",
+                  Content = "Invalid input. Enter a number like 5 or 6.",
                   Duration = 3,
                   Image = nil,
                   Actions = {}
@@ -226,7 +251,6 @@ CheckpointTab:CreateButton({
             end
          end
       })
-      input:Show()
    end
 })
 
@@ -318,3 +342,66 @@ local function stopFlying()
       })
    end
 end
+
+-- Ensure flying stops on character reset
+player.CharacterAdded:Connect(function(newChar)
+   character = newChar
+   humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+   humanoid = newChar:WaitForChild("Humanoid")
+   stopFlying()
+end)
+
+-- Toggle flying button
+FlightTab:CreateToggle({
+   Name = "Toggle Fly",
+   CurrentValue = false,
+   Callback = function(Value)
+      if Value then
+         if character and humanoidRootPart and humanoid and humanoid.Health > 0 then
+            startFlying()
+         else
+            Rayfield:Notify({
+               Title = "Error",
+               Content = "Player character not loaded. Try again.",
+               Duration = 3,
+               Image = nil,
+               Actions = {}
+            })
+         end
+      else
+         stopFlying()
+      end
+   end
+})
+
+-- Fly speed slider
+FlightTab:CreateSlider({
+   Name = "Fly Speed",
+   Range = {10, maxSpeed},
+   Increment = 10,
+   Suffix = "Speed",
+   CurrentValue = flySpeed,
+   Callback = function(Value)
+      flySpeed = Value
+      Rayfield:Notify({
+         Title = "Speed Updated",
+         Content = "Fly speed set to " .. Value,
+         Duration = 2,
+         Image = nil,
+         Actions = {}
+      })
+   end
+})
+
+-- Toggle GUI visibility for both tabs
+local function createVisibilityToggle(tab)
+   tab:CreateToggle({
+      Name = "Toggle GUI Visibility",
+      CurrentValue = true,
+      Callback = function(Value)
+         Rayfield:ToggleWindow(Value)
+      end
+   })
+end
+createVisibilityToggle(FlightTab)
+createVisibilityToggle(CheckpointTab)
