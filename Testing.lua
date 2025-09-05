@@ -405,5 +405,3 @@ local function createVisibilityToggle(tab)
 end
 createVisibilityToggle(FlightTab)
 createVisibilityToggle(CheckpointTab)
-
-can you fix my code and fix the flight mode, and leave everything as is
