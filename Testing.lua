@@ -1,6 +1,6 @@
 -- Rayfield GUI with Separate Tabs for Flight and Checkpoints in [BARU] Gunung Nomaly
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
--- Includes flying mode and teleport to checkpoints in Workspace.Checkpoints
+-- Includes flying mode, teleport to checkpoints, and summit detection
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
@@ -28,24 +28,14 @@ local function findCheckpoints()
       for _, child in ipairs(checkpointFolder:GetChildren()) do
          if child:IsA("BasePart") and string.match(child.Name, "Checkpoint%d+") then
             table.insert(checkpoints, child)
-            print("Detected Checkpoint: " .. child.Name .. " at " .. tostring(child.Position))
-         else
-            print("Skipped: " .. child.Name .. " (Not a CheckpointX part)")
+            -- Debug print (comment out if not needed)
+            print("Detected Checkpoint: " .. child.Name .. " at Position: " .. tostring(child.Position))
          end
       end
-      -- Sort by checkpoint number (e.g., Checkpoint1, Checkpoint2)
+      -- Sort by checkpoint number
       table.sort(checkpoints, function(a, b)
          return tonumber(string.match(a.Name, "%d+")) < tonumber(string.match(b.Name, "%d+"))
       end)
-      if #checkpoints == 0 then
-         Rayfield:Notify({
-            Title = "Warning",
-            Content = "No checkpoints found matching 'CheckpointX' pattern. Check console for details.",
-            Duration = 5,
-            Image = nil,
-            Actions = {}
-         })
-      end
    else
       Rayfield:Notify({
          Title = "Error",
@@ -69,7 +59,7 @@ if #checkpoints > 0 then
          Callback = function()
             local player = game.Players.LocalPlayer
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-               player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0) -- TP above the checkpoint
+               player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
                Rayfield:Notify({
                   Title = "Teleported",
                   Content = "To " .. cp.Name,
@@ -90,7 +80,7 @@ if #checkpoints > 0 then
       })
    end
 else
-   CheckpointTab:CreateLabel("No checkpoints found. Check console for debug info.")
+   CheckpointTab:CreateLabel("No checkpoints found matching 'CheckpointX' pattern. Use flying to explore.")
 end
 
 -- Auto-Teleport through all checkpoints
@@ -101,11 +91,11 @@ CheckpointTab:CreateButton({
       if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
          for i, cp in ipairs(checkpoints) do
             player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
-            wait(1) -- Delay between TPs, adjust as needed
+            wait(1)
          end
          Rayfield:Notify({
             Title = "Auto TP Complete",
-            Content = "Teleported through all checkpoints.",
+            Content = "Teleported through all checkpoints. Fly or walk to summit if needed.",
             Duration = 5,
             Image = nil,
             Actions = {}
@@ -121,6 +111,37 @@ CheckpointTab:CreateButton({
       end
    end
 })
+
+-- Detect and add button for Summit if found
+local summitPart = game.Workspace:FindFirstChild("Summit", true) or game.Workspace.Checkpoints:FindFirstChild("Summit")  -- Search recursively in Workspace or Checkpoints
+if summitPart and summitPart:IsA("BasePart") then
+   CheckpointTab:CreateButton({
+      Name = "Teleport to Summit",
+      Callback = function()
+         local player = game.Players.LocalPlayer
+         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = summitPart.CFrame * CFrame.new(0, 5, 0)
+            Rayfield:Notify({
+               Title = "Teleported",
+               Content = "To Summit. Press E or tap to interact.",
+               Duration = 3,
+               Image = nil,
+               Actions = {}
+            })
+         else
+            Rayfield:Notify({
+               Title = "Error",
+               Content = "Player character not found.",
+               Duration = 3,
+               Image = nil,
+               Actions = {}
+            })
+         end
+      end
+   })
+else
+   CheckpointTab:CreateLabel("Summit not found. Use flying to reach the top and interact (E/tap).")
+end
 
 -- Flying variables
 local player = game.Players.LocalPlayer
@@ -187,7 +208,7 @@ local function startFlying()
 
    Rayfield:Notify({
       Title = "Flying Enabled",
-      Content = "Use WASD, Space, and Shift to move.",
+      Content = "Use WASD, Space, and Shift to move. Fly to summit if needed.",
       Duration = 3,
       Image = nil,
       Actions = {}
