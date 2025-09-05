@@ -1,6 +1,6 @@
 -- Rayfield GUI with Separate Tabs for Flight and Checkpoints in [BARU] Gunung Nomaly
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
--- Updated Rayfield URL for reliability; includes flying mode, teleport to checkpoints, summit detection, and enhanced checkpoint handling
+-- Includes working checkpoints and restored flying mode
 
 local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 
@@ -20,47 +20,21 @@ local Window = Rayfield:CreateWindow({
 local FlightTab = Window:CreateTab("Flight Controls", nil)
 local CheckpointTab = Window:CreateTab("Checkpoint Teleports", nil)
 
--- Function to find and sort checkpoints with enhanced debugging and delay
+-- Function to find and sort checkpoints (unchanged since working)
 local function findCheckpoints()
    local checkpoints = {}
    local checkpointFolder = game.Workspace:FindFirstChild("Checkpoints")
    if checkpointFolder then
-      -- Wait briefly to allow dynamic loading
-      wait(2) -- Adjustable delay to let checkpoints load
+      wait(2) -- Delay to allow loading
       for _, child in ipairs(checkpointFolder:GetChildren()) do
-         if child:IsA("BasePart") then
-            local isCheckpoint = string.match(child.Name, "Checkpoint%d+") or string.match(child.Name, "CP%d+") or string.match(child.Name, "CheckPoint%d+") -- Try multiple patterns
-            if isCheckpoint then
-               table.insert(checkpoints, child)
-               print("Detected Checkpoint: " .. child.Name .. " at Position: " .. tostring(child.Position))
-            else
-               print("Skipped: " .. child.Name .. " (Not a recognized checkpoint pattern)")
-            end
+         if child:IsA("BasePart") and string.match(child.Name, "Checkpoint%d+") then
+            table.insert(checkpoints, child)
+            print("Detected Checkpoint: " .. child.Name .. " at Position: " .. tostring(child.Position))
          end
       end
-      -- Sort by checkpoint number
       table.sort(checkpoints, function(a, b)
-         local numA = tonumber(string.match(a.Name, "%d+")) or 0
-         local numB = tonumber(string.match(b.Name, "%d+")) or 0
-         return numA < numB
+         return tonumber(string.match(a.Name, "%d+")) < tonumber(string.match(b.Name, "%d+"))
       end)
-      if #checkpoints == 0 then
-         Rayfield:Notify({
-            Title = "Warning",
-            Content = "No checkpoints found. Check console for details or use flying to progress.",
-            Duration = 5,
-            Image = nil,
-            Actions = {}
-         })
-      else
-         Rayfield:Notify({
-            Title = "Notice",
-            Content = #checkpoints .. " checkpoints detected. If 5-6 are missing, they may load later.",
-            Duration = 5,
-            Image = nil,
-            Actions = {}
-         })
-      end
    else
       Rayfield:Notify({
          Title = "Error",
@@ -73,13 +47,11 @@ local function findCheckpoints()
    return checkpoints
 end
 
--- Initial checkpoints load
+-- Get checkpoints
 local checkpoints = findCheckpoints()
 
--- Function to create teleport buttons based on current checkpoints
-local function createTeleportButtons()
-   -- Clear existing buttons (except fixed ones)
-   -- Note: Rayfield doesn't support dynamic clearing easily, so buttons may duplicate on refresh; use with caution
+-- Create a button for each checkpoint
+if #checkpoints > 0 then
    for i, cp in ipairs(checkpoints) do
       CheckpointTab:CreateButton({
          Name = "Teleport to " .. cp.Name,
@@ -106,32 +78,9 @@ local function createTeleportButtons()
          end
       })
    end
-end
-
--- Initial creation of teleport buttons
-if #checkpoints > 0 then
-   createTeleportButtons()
 else
    CheckpointTab:CreateLabel("No checkpoints found. Use flying to explore or check console.")
 end
-
--- Refresh Checkpoints button
-CheckpointTab:CreateButton({
-   Name = "Refresh Checkpoints",
-   Callback = function()
-      checkpoints = findCheckpoints()
-      Rayfield:Notify({
-         Title = "Refreshed",
-         Content = "Checkpoints reloaded. New buttons may appear below.",
-         Duration = 3,
-         Image = nil,
-         Actions = {}
-      })
-      if #checkpoints > 0 then
-         createTeleportButtons()
-      end
-   end
-})
 
 -- Auto-Teleport through all checkpoints
 CheckpointTab:CreateButton({
@@ -192,67 +141,6 @@ if summitPart and summitPart:IsA("BasePart") then
 else
    CheckpointTab:CreateLabel("Summit not found. Use flying to reach the top and interact (E/tap).")
 end
-
--- Allow manual addition of missing checkpoints (any number)
-CheckpointTab:CreateButton({
-   Name = "Add Missing Checkpoint (e.g., 5-6)",
-   Callback = function()
-      local input = CheckpointTab:CreateInput({
-         Name = "Enter Checkpoint Number (e.g., 5)",
-         PlaceholderText = "Number only",
-         RemoveTextAfterFocusLost = false,
-         Callback = function(text)
-            local num = tonumber(text)
-            if num then
-               local cpName = "Checkpoint" .. num
-               local cp = game.Workspace.Checkpoints:FindFirstChild(cpName)
-               if cp and cp:IsA("BasePart") then
-                  table.insert(checkpoints, cp)
-                  CheckpointTab:CreateButton({
-                     Name = "Teleport to " .. cpName,
-                     Callback = function()
-                        local player = game.Players.LocalPlayer
-                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                           player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
-                           Rayfield:Notify({
-                              Title = "Teleported",
-                              Content = "To " .. cpName,
-                              Duration = 3,
-                              Image = nil,
-                              Actions = {}
-                           })
-                        end
-                     end
-                  })
-                  Rayfield:Notify({
-                     Title = "Success",
-                     Content = cpName .. " added and button created.",
-                     Duration = 3,
-                     Image = nil,
-                     Actions = {}
-                  })
-               else
-                  Rayfield:Notify({
-                     Title = "Error",
-                     Content = cpName .. " not found in Workspace.Checkpoints.",
-                     Duration = 3,
-                     Image = nil,
-                     Actions = {}
-                  })
-               end
-            else
-               Rayfield:Notify({
-                  Title = "Error",
-                  Content = "Invalid input. Enter a number like 5 or 6.",
-                  Duration = 3,
-                  Image = nil,
-                  Actions = {}
-               })
-            end
-         end
-      })
-   end
-})
 
 -- Flying variables
 local player = game.Players.LocalPlayer
@@ -319,7 +207,7 @@ local function startFlying()
 
    Rayfield:Notify({
       Title = "Flying Enabled",
-      Content = "Use WASD, Space, and Shift to move. Fly to find missing checkpoints or summit.",
+      Content = "Use WASD, Space, and Shift to move.",
       Duration = 3,
       Image = nil,
       Actions = {}
