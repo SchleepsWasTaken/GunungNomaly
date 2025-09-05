@@ -2,7 +2,7 @@
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
 -- Updated Rayfield URL for reliability; includes flying mode, teleport to checkpoints, summit detection, and enhanced checkpoint handling
 
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 
 -- Create the main GUI window
 local Window = Rayfield:CreateWindow({
@@ -76,13 +76,12 @@ end
 -- Initial checkpoints load
 local checkpoints = findCheckpoints()
 
-local teleportButtons = {}
-local noCpLabel = nil
-
 -- Function to create teleport buttons based on current checkpoints
 local function createTeleportButtons()
+   -- Clear existing buttons (except fixed ones)
+   -- Note: Rayfield doesn't support dynamic clearing easily, so buttons may duplicate on refresh; use with caution
    for i, cp in ipairs(checkpoints) do
-      local button = CheckpointTab:CreateButton({
+      CheckpointTab:CreateButton({
          Name = "Teleport to " .. cp.Name,
          Callback = function()
             local player = game.Players.LocalPlayer
@@ -106,38 +105,21 @@ local function createTeleportButtons()
             end
          end
       })
-      table.insert(teleportButtons, button)
-   end
-end
-
--- Function to refresh the checkpoint UI
-local function refreshCheckpointUI()
-   -- Clear existing dynamic elements
-   for _, button in ipairs(teleportButtons) do
-      button:Destroy()
-   end
-   teleportButtons = {}
-   if noCpLabel then
-      noCpLabel:Destroy()
-      noCpLabel = nil
-   end
-
-   if #checkpoints > 0 then
-      createTeleportButtons()
-   else
-      noCpLabel = CheckpointTab:CreateLabel("No checkpoints found. Use flying to explore or check console.")
    end
 end
 
 -- Initial creation of teleport buttons
-refreshCheckpointUI()
+if #checkpoints > 0 then
+   createTeleportButtons()
+else
+   CheckpointTab:CreateLabel("No checkpoints found. Use flying to explore or check console.")
+end
 
 -- Refresh Checkpoints button
 CheckpointTab:CreateButton({
    Name = "Refresh Checkpoints",
    Callback = function()
       checkpoints = findCheckpoints()
-      refreshCheckpointUI()
       Rayfield:Notify({
          Title = "Refreshed",
          Content = "Checkpoints reloaded. New buttons may appear below.",
@@ -145,6 +127,9 @@ CheckpointTab:CreateButton({
          Image = nil,
          Actions = {}
       })
+      if #checkpoints > 0 then
+         createTeleportButtons()
+      end
    end
 })
 
@@ -209,60 +194,63 @@ else
 end
 
 -- Allow manual addition of missing checkpoints (any number)
-CheckpointTab:CreateLabel("Add Missing Checkpoint (e.g., 5-6):")
-CheckpointTab:CreateInput({
-   Name = "Enter Checkpoint Number (e.g., 5)",
-   PlaceholderText = "Number only",
-   RemoveTextAfterFocusLost = false,
-   Callback = function(text)
-      local num = tonumber(text)
-      if num then
-         local cpName = "Checkpoint" .. num
-         local cp = game.Workspace.Checkpoints:FindFirstChild(cpName)
-         if cp and cp:IsA("BasePart") then
-            table.insert(checkpoints, cp)
-            local button = CheckpointTab:CreateButton({
-               Name = "Teleport to " .. cpName,
-               Callback = function()
-                  local player = game.Players.LocalPlayer
-                  if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                     player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
-                     Rayfield:Notify({
-                        Title = "Teleported",
-                        Content = "To " .. cpName,
-                        Duration = 3,
-                        Image = nil,
-                        Actions = {}
-                     })
-                  end
+CheckpointTab:CreateButton({
+   Name = "Add Missing Checkpoint (e.g., 5-6)",
+   Callback = function()
+      local input = CheckpointTab:CreateInput({
+         Name = "Enter Checkpoint Number (e.g., 5)",
+         PlaceholderText = "Number only",
+         RemoveTextAfterFocusLost = false,
+         Callback = function(text)
+            local num = tonumber(text)
+            if num then
+               local cpName = "Checkpoint" .. num
+               local cp = game.Workspace.Checkpoints:FindFirstChild(cpName)
+               if cp and cp:IsA("BasePart") then
+                  table.insert(checkpoints, cp)
+                  CheckpointTab:CreateButton({
+                     Name = "Teleport to " .. cpName,
+                     Callback = function()
+                        local player = game.Players.LocalPlayer
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                           player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
+                           Rayfield:Notify({
+                              Title = "Teleported",
+                              Content = "To " .. cpName,
+                              Duration = 3,
+                              Image = nil,
+                              Actions = {}
+                           })
+                        end
+                     end
+                  })
+                  Rayfield:Notify({
+                     Title = "Success",
+                     Content = cpName .. " added and button created.",
+                     Duration = 3,
+                     Image = nil,
+                     Actions = {}
+                  })
+               else
+                  Rayfield:Notify({
+                     Title = "Error",
+                     Content = cpName .. " not found in Workspace.Checkpoints.",
+                     Duration = 3,
+                     Image = nil,
+                     Actions = {}
+                  })
                end
-            })
-            table.insert(teleportButtons, button)
-            Rayfield:Notify({
-               Title = "Success",
-               Content = cpName .. " added and button created.",
-               Duration = 3,
-               Image = nil,
-               Actions = {}
-            })
-         else
-            Rayfield:Notify({
-               Title = "Error",
-               Content = cpName .. " not found in Workspace.Checkpoints.",
-               Duration = 3,
-               Image = nil,
-               Actions = {}
-            })
+            else
+               Rayfield:Notify({
+                  Title = "Error",
+                  Content = "Invalid input. Enter a number like 5 or 6.",
+                  Duration = 3,
+                  Image = nil,
+                  Actions = {}
+               })
+            end
          end
-      else
-         Rayfield:Notify({
-            Title = "Error",
-            Content = "Invalid input. Enter a number like 5 or 6.",
-            Duration = 3,
-            Image = nil,
-            Actions = {}
-         })
-      end
+      })
    end
 })
 
@@ -279,7 +267,6 @@ local maxSpeed = 200
 -- Function to start flying
 local function startFlying()
    if not character or not humanoidRootPart or not humanoid then return end
-   if isFlying then return end
    isFlying = true
    humanoid.PlatformStand = true
 
@@ -294,30 +281,29 @@ local function startFlying()
    bodyGyro.D = 500
    bodyGyro.Parent = humanoidRootPart
 
-   local camera = workspace.CurrentCamera
-   local userInputService = game:GetService("UserInputService")
-
    spawn(function()
+      local camera = game.Workspace.CurrentCamera
       while isFlying and humanoidRootPart and humanoid.Health > 0 do
          local moveDirection = Vector3.new(0, 0, 0)
+         local inputState = game:GetService("UserInputService")
          local cameraCFrame = camera.CFrame
 
-         if userInputService:IsKeyDown(Enum.KeyCode.W) then
+         if inputState:IsKeyDown(Enum.KeyCode.W) then
             moveDirection = moveDirection + cameraCFrame.LookVector
          end
-         if userInputService:IsKeyDown(Enum.KeyCode.S) then
+         if inputState:IsKeyDown(Enum.KeyCode.S) then
             moveDirection = moveDirection - cameraCFrame.LookVector
          end
-         if userInputService:IsKeyDown(Enum.KeyCode.A) then
+         if inputState:IsKeyDown(Enum.KeyCode.A) then
             moveDirection = moveDirection - cameraCFrame.RightVector
          end
-         if userInputService:IsKeyDown(Enum.KeyCode.D) then
+         if inputState:IsKeyDown(Enum.KeyCode.D) then
             moveDirection = moveDirection + cameraCFrame.RightVector
          end
-         if userInputService:IsKeyDown(Enum.KeyCode.Space) then
+         if inputState:IsKeyDown(Enum.KeyCode.Space) then
             moveDirection = moveDirection + Vector3.new(0, 1, 0)
          end
-         if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+         if inputState:IsKeyDown(Enum.KeyCode.LeftShift) then
             moveDirection = moveDirection - Vector3.new(0, 1, 0)
          end
 
@@ -325,7 +311,7 @@ local function startFlying()
             moveDirection = moveDirection.Unit * flySpeed
          end
          bodyVelocity.Velocity = moveDirection
-         bodyGyro.CFrame = cameraCFrame
+         bodyGyro.CFrame = CFrame.new(Vector3.new(0, 0, 0), cameraCFrame.LookVector)
 
          game:GetService("RunService").Heartbeat:Wait()
       end
@@ -363,13 +349,10 @@ player.CharacterAdded:Connect(function(newChar)
    humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
    humanoid = newChar:WaitForChild("Humanoid")
    stopFlying()
-   if flyToggle then
-      flyToggle:Set(false)
-   end
 end)
 
 -- Toggle flying button
-local flyToggle = FlightTab:CreateToggle({
+FlightTab:CreateToggle({
    Name = "Toggle Fly",
    CurrentValue = false,
    Callback = function(Value)
@@ -422,3 +405,5 @@ local function createVisibilityToggle(tab)
 end
 createVisibilityToggle(FlightTab)
 createVisibilityToggle(CheckpointTab)
+
+can you fix my code and fix the flight mode, and leave everything as is
