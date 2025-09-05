@@ -1,26 +1,54 @@
 -- Rayfield GUI with Separate Tabs for Flight and Checkpoints in [BARU] Gunung Nomaly
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
--- Includes working checkpoints and restored flying mode
+-- Includes error handling and debug for GUI loading issues
 
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+-- Attempt to load Rayfield with fallback
+local success, Rayfield = pcall(function()
+   return loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+end)
+
+if not success or not Rayfield then
+   warn("Failed to load Rayfield from URL. Check network or executor compatibility.")
+   return -- Exit if Rayfield fails to load
+else
+   print("Rayfield loaded successfully.")
+end
 
 -- Create the main GUI window
-local Window = Rayfield:CreateWindow({
-   Name = "Gunung Nomaly Utility GUI",
-   LoadingTitle = "Flight & TP Script",
-   LoadingSubtitle = "by Grok",
-   ConfigurationSaving = {
-      Enabled = false,
-      FolderName = nil,
-      FileName = "GunungNomalyUtility"
-   }
-})
+local Window
+pcall(function()
+   Window = Rayfield:CreateWindow({
+      Name = "Gunung Nomaly Utility GUI",
+      LoadingTitle = "Flight & TP Script",
+      LoadingSubtitle = "by Grok",
+      ConfigurationSaving = {
+         Enabled = false,
+         FolderName = nil,
+         FileName = "GunungNomalyUtility"
+      }
+   })
+end)
+if not Window then
+   warn("Failed to create GUI window. Rayfield may not be initialized.")
+   return
+else
+   print("GUI window created successfully.")
+end
 
--- Create separate tabs
-local FlightTab = Window:CreateTab("Flight Controls", nil)
-local CheckpointTab = Window:CreateTab("Checkpoint Teleports", nil)
+-- Create separate tabs with error checking
+local FlightTab, CheckpointTab
+pcall(function()
+   FlightTab = Window:CreateTab("Flight Controls", nil)
+   CheckpointTab = Window:CreateTab("Checkpoint Teleports", nil)
+end)
+if not FlightTab or not CheckpointTab then
+   warn("Failed to create one or both tabs. Check Rayfield status.")
+   return
+else
+   print("Tabs created successfully.")
+end
 
--- Function to find and sort checkpoints (unchanged since working)
+-- Function to find and sort checkpoints
 local function findCheckpoints()
    local checkpoints = {}
    local checkpointFolder = game.Workspace:FindFirstChild("Checkpoints")
