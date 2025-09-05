@@ -2,7 +2,7 @@
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
 -- Updated Rayfield URL for reliability; includes flying mode, teleport to checkpoints, summit detection, and enhanced checkpoint handling
 
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 -- Create the main GUI window
 local Window = Rayfield:CreateWindow({
