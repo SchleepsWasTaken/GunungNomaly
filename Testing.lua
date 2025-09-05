@@ -1,30 +1,117 @@
--- Rayfield GUI with Fly Mode and Teleport Script for [BARU] Gunung Nomaly
+-- Rayfield GUI Teleport Script for [BARU] Gunung Nomaly
 -- Compatible with Delta Mobile Executor and PC Executors (e.g., Xeno)
--- Improved checkpoint detection and fly menu visibility
+-- Includes teleport through checkpoints in Workspace.Checkpoints and flying mode
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Create the main GUI window
 local Window = Rayfield:CreateWindow({
-   Name = "Gunung Nomaly Utility GUI",
-   LoadingTitle = "Flight & TP Script",
+   Name = "Gunung Nomaly TP & Fly GUI",
+   LoadingTitle = "Teleport & Flight Script",
    LoadingSubtitle = "by Grok",
    ConfigurationSaving = {
       Enabled = false,
       FolderName = nil,
-      FileName = "GunungNomalyUtility"
+      FileName = "GunungNomalyTP"
    }
 })
 
--- Tab for Flight Controls
-local FlightTab = Window:CreateTab("Flight Controls", 1103511846) -- Icon ID for flight
+-- Create a tab for teleport and flight controls
+local Tab = Window:CreateTab("Checkpoints & Flight", nil)
 
--- Tab for Checkpoint Teleports
-local TPTab = Window:CreateTab("Checkpoint Teleports", 1103511847) -- Icon ID for teleport
+-- Function to find and sort checkpoints
+local function findCheckpoints()
+   local checkpoints = {}
+   local checkpointFolder = game.Workspace:FindFirstChild("Checkpoints")
+   if checkpointFolder then
+      for _, child in ipairs(checkpointFolder:GetChildren()) do
+         if child:IsA("BasePart") and string.match(child.Name, "Checkpoint%d+") then
+            table.insert(checkpoints, child)
+         end
+      end
+      -- Sort by checkpoint number (e.g., Checkpoint1, Checkpoint2)
+      table.sort(checkpoints, function(a, b)
+         return tonumber(string.match(a.Name, "%d+")) < tonumber(string.match(b.Name, "%d+"))
+      end)
+   else
+      Rayfield:Notify({
+         Title = "Error",
+         Content = "Checkpoints folder not found in Workspace.",
+         Duration = 5,
+         Image = nil,
+         Actions = {}
+      })
+   end
+   return checkpoints
+end
+
+-- Get checkpoints
+local checkpoints = findCheckpoints()
+
+-- Create a button for each checkpoint
+if #checkpoints > 0 then
+   for i, cp in ipairs(checkpoints) do
+      Tab:CreateButton({
+         Name = "Teleport to " .. cp.Name,
+         Callback = function()
+            local player = game.Players.LocalPlayer
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+               player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0) -- TP above the checkpoint
+               Rayfield:Notify({
+                  Title = "Teleported",
+                  Content = "To " .. cp.Name,
+                  Duration = 3,
+                  Image = nil,
+                  Actions = {}
+               })
+            else
+               Rayfield:Notify({
+                  Title = "Error",
+                  Content = "Player character not found.",
+                  Duration = 3,
+                  Image = nil,
+                  Actions = {}
+               })
+            end
+         end
+      })
+   end
+else
+   Tab:CreateLabel("No checkpoints found matching 'CheckpointX' pattern.")
+end
+
+-- Auto-Teleport through all checkpoints
+Tab:CreateButton({
+   Name = "Auto TP Through All Checkpoints",
+   Callback = function()
+      local player = game.Players.LocalPlayer
+      if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+         for i, cp in ipairs(checkpoints) do
+            player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
+            wait(1) -- Delay between TPs, adjust as needed
+         end
+         Rayfield:Notify({
+            Title = "Auto TP Complete",
+            Content = "Teleported through all checkpoints.",
+            Duration = 5,
+            Image = nil,
+            Actions = {}
+         })
+      else
+         Rayfield:Notify({
+            Title = "Error",
+            Content = "Player character not found.",
+            Duration = 3,
+            Image = nil,
+            Actions = {}
+         })
+      end
+   end
+})
 
 -- Flying variables
 local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
+local character = player.Character
 local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 local humanoid = character and character:FindFirstChild("Humanoid")
 local bodyVelocity, bodyGyro
@@ -34,7 +121,7 @@ local maxSpeed = 200
 
 -- Function to start flying
 local function startFlying()
-   if not character or not humanoidRootPart or not humanoid or humanoid.Health <= 0 then return end
+   if not character or not humanoidRootPart or not humanoid then return end
    isFlying = true
    humanoid.PlatformStand = true
 
@@ -56,14 +143,28 @@ local function startFlying()
          local inputState = game:GetService("UserInputService")
          local cameraCFrame = camera.CFrame
 
-         if inputState:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + cameraCFrame.LookVector end
-         if inputState:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - cameraCFrame.LookVector end
-         if inputState:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - cameraCFrame.RightVector end
-         if inputState:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + cameraCFrame.RightVector end
-         if inputState:IsKeyDown(Enum.KeyCode.Space) then moveDirection = moveDirection + Vector3.new(0, 1, 0) end
-         if inputState:IsKeyDown(Enum.KeyCode.LeftShift) then moveDirection = moveDirection - Vector3.new(0, 1, 0) end
+         if inputState:IsKeyDown(Enum.KeyCode.W) then
+            moveDirection = moveDirection + cameraCFrame.LookVector
+         end
+         if inputState:IsKeyDown(Enum.KeyCode.S) then
+            moveDirection = moveDirection - cameraCFrame.LookVector
+         end
+         if inputState:IsKeyDown(Enum.KeyCode.A) then
+            moveDirection = moveDirection - cameraCFrame.RightVector
+         end
+         if inputState:IsKeyDown(Enum.KeyCode.D) then
+            moveDirection = moveDirection + cameraCFrame.RightVector
+         end
+         if inputState:IsKeyDown(Enum.KeyCode.Space) then
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
+         end
+         if inputState:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDirection = moveDirection - Vector3.new(0, 1, 0)
+         end
 
-         if moveDirection.Magnitude > 0 then moveDirection = moveDirection.Unit * flySpeed end
+         if moveDirection.Magnitude > 0 then
+            moveDirection = moveDirection.Unit * flySpeed
+         end
          bodyVelocity.Velocity = moveDirection
          bodyGyro.CFrame = CFrame.new(Vector3.new(0, 0, 0), cameraCFrame.LookVector)
 
@@ -105,20 +206,31 @@ player.CharacterAdded:Connect(function(newChar)
    stopFlying()
 end)
 
--- Flight Controls
-FlightTab:CreateToggle({
+-- Toggle flying button
+Tab:CreateToggle({
    Name = "Toggle Fly",
    CurrentValue = false,
    Callback = function(Value)
       if Value then
-         startFlying()
+         if character and humanoidRootPart and humanoid and humanoid.Health > 0 then
+            startFlying()
+         else
+            Rayfield:Notify({
+               Title = "Error",
+               Content = "Player character not loaded. Try again.",
+               Duration = 3,
+               Image = nil,
+               Actions = {}
+            })
+         end
       else
          stopFlying()
       end
    end
 })
 
-FlightTab:CreateSlider({
+-- Fly speed slider
+Tab:CreateSlider({
    Name = "Fly Speed",
    Range = {10, maxSpeed},
    Increment = 10,
@@ -136,105 +248,11 @@ FlightTab:CreateSlider({
    end
 })
 
-FlightTab:CreateLabel("Fly Menu Active - Use WASD/Space/Shift")
-
--- Function to find and sort checkpoints
-local function findCheckpoints()
-   local checkpoints = {}
-   local checkpointFolder = game.Workspace:FindFirstChild("Checkpoints")
-   if checkpointFolder then
-      for _, child in ipairs(checkpointFolder:GetChildren()) do
-         if child:IsA("BasePart") and string.match(child.Name, "Checkpoint%d+") then
-            table.insert(checkpoints, child)
-         end
-      end
-      table.sort(checkpoints, function(a, b)
-         return tonumber(string.match(a.Name, "%d+")) < tonumber(string.match(b.Name, "%d+"))
-      end)
-   else
-      TPTab:CreateLabel("Error: Checkpoints folder not found.")
+-- Optional: Toggle GUI visibility
+Tab:CreateToggle({
+   Name = "Toggle GUI Visibility",
+   CurrentValue = true,
+   Callback = function(Value)
+      Rayfield:ToggleWindow(Value)
    end
-   return checkpoints
-end
-
--- Get and list checkpoints
-local checkpoints = findCheckpoints()
-if #checkpoints > 0 then
-   TPTab:CreateLabel("Detected Checkpoints: " .. table.concat(table.map(checkpoints, function(cp) return cp.Name end), ", "))
-else
-   TPTab:CreateLabel("No checkpoints detected matching 'CheckpointX' pattern.")
-end
-
--- Create teleport buttons
-if #checkpoints > 0 then
-   for i, cp in ipairs(checkpoints) do
-      TPTab:CreateButton({
-         Name = "Teleport to " .. cp.Name,
-         Callback = function()
-            local player = game.Players.LocalPlayer
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-               player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
-               Rayfield:Notify({
-                  Title = "Teleported",
-                  Content = "To " .. cp.Name,
-                  Duration = 3,
-                  Image = nil,
-                  Actions = {}
-               })
-            else
-               Rayfield:Notify({
-                  Title = "Error",
-                  Content = "Player character not found.",
-                  Duration = 3,
-                  Image = nil,
-                  Actions = {}
-               })
-            end
-         end
-      })
-   end
-end
-
--- Auto-Teleport through all checkpoints
-if #checkpoints > 0 then
-   TPTab:CreateButton({
-      Name = "Auto TP Through All Checkpoints",
-      Callback = function()
-         local player = game.Players.LocalPlayer
-         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            for i, cp in ipairs(checkpoints) do
-               player.Character.HumanoidRootPart.CFrame = cp.CFrame * CFrame.new(0, 5, 0)
-               wait(1)
-            end
-            Rayfield:Notify({
-               Title = "Auto TP Complete",
-               Content = "Teleported through all checkpoints.",
-               Duration = 5,
-               Image = nil,
-               Actions = {}
-            })
-         else
-            Rayfield:Notify({
-               Title = "Error",
-               Content = "Player character not found.",
-               Duration = 3,
-               Image = nil,
-               Actions = {}
-            })
-         end
-      end
-   })
-end
-
--- Toggle GUI visibility
-local function createVisibilityToggle(tab)
-   tab:CreateToggle({
-      Name = "Toggle GUI Visibility",
-      CurrentValue = true,
-      Callback = function(Value)
-         Rayfield:ToggleWindow(Value)
-      end
-   })
-end
-createVisibilityToggle(FlightTab)
-createVisibilityToggle(TPTab)
+})
